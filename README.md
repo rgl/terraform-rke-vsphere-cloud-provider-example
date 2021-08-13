@@ -49,8 +49,11 @@ export TF_VAR_vsphere_datacenter='Datacenter'
 export TF_VAR_vsphere_compute_cluster='Cluster'
 export TF_VAR_vsphere_datastore='Datastore'
 export TF_VAR_vsphere_network='VM Network'
-export TF_VAR_vsphere_folder='example'
+export TF_VAR_prefix='rke_example'
+export TF_VAR_vsphere_folder="examples/$TF_VAR_prefix"
 export TF_VAR_vsphere_ubuntu_template='vagrant-templates/ubuntu-20.04-amd64-vsphere'
+export TF_VAR_controller_count='1'
+export TF_VAR_worker_count='1'
 export GOVC_INSECURE='1'
 export GOVC_URL="https://$TF_VAR_vsphere_server/sdk"
 export GOVC_USERNAME="$TF_VAR_vsphere_user"
@@ -77,15 +80,7 @@ time terraform apply tfplan
 terraform plan -out=tfplan
 ```
 
-Test SSH access:
-
-```bash
-ssh-keygen -f ~/.ssh/known_hosts -R "$(terraform output --raw ip)"
-ssh "vagrant@$(terraform output --raw ip)"
-exit
-```
-
-Test `kubectl` access:
+Test accessing the cluster:
 
 ```bash
 terraform output --raw kubeconfig >kubeconfig.yaml
@@ -164,7 +159,8 @@ kubectl apply -f test-pod.yaml
 kubectl get pods -o wide
 # show the current VM disks. you should see the sdb disk device and the
 # corresponding disk UUID. sdb is the backing device of the pod volume.
-ssh "vagrant@$(terraform output --raw ip)" -- lsblk -o KNAME,SIZE,TRAN,FSTYPE,UUID,LABEL,MODEL,SERIAL
+ssh "vagrant@$(kubectl get pods test -o json | jq -r .status.hostIP)" \
+  -- lsblk -o KNAME,SIZE,TRAN,FSTYPE,UUID,LABEL,MODEL,SERIAL
 # enter the pod and check the mount volume.
 kubectl exec -it test -- /bin/bash
 # show the mounts. you should see sdb mounted at /usr/share/nginx/html.
@@ -186,12 +182,8 @@ kubectl get pv
 kubectl apply -f test-pod.yaml
 # see the pod status and wait for it be Running.
 kubectl get pods -o wide
-# enter the new pod and check whether it persisted the data.
-kubectl exec -it test -- /bin/bash
 # check whether nginx is returning the expected html.
-curl localhost
-# exit the pod.
-exit
+kubectl exec -it test -- curl localhost
 ```
 
 Destroy everything:

@@ -372,6 +372,11 @@ resource "rke_cluster" "example" {
   }
 }
 
+output "rke_state" {
+  sensitive = true
+  value = rke_cluster.example.rke_state
+}
+
 output "kubeconfig" {
   sensitive = true
   value = rke_cluster.example.kube_config_yaml
